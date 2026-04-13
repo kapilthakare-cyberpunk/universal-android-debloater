@@ -54,11 +54,7 @@ impl std::fmt::Display for User {
 }
 
 pub fn adb_shell_command(shell: bool, args: &str) -> Result<String, String> {
-    let adb_command = if shell {
-        vec!["shell", args]
-    } else {
-        vec![args]
-    };
+    let adb_command = if shell { vec!["shell", args] } else { vec![args] };
 
     let mut command = Command::new("adb");
     command.args(adb_command);
@@ -100,10 +96,7 @@ pub enum CommandType {
     PackageManager(PackageInfo),
     Shell,
 }
-pub async fn perform_adb_commands(
-    action: String,
-    command_type: CommandType,
-) -> Result<CommandType, ()> {
+pub async fn perform_adb_commands(action: String, command_type: CommandType) -> Result<CommandType, ()> {
     let label = match command_type {
         CommandType::PackageManager(ref p) => p.removal.to_string(),
         CommandType::Shell => "Shell".to_string(),
@@ -306,9 +299,8 @@ pub fn get_user_list() -> Vec<User> {
 
 // getprop ro.serialno
 pub async fn get_devices_list() -> Vec<Phone> {
-    retry(
-        Fixed::from_millis(500).take(120),
-        || match adb_shell_command(false, "devices") {
+    retry(Fixed::from_millis(500).take(120), || {
+        match adb_shell_command(false, "devices") {
             Ok(devices) => {
                 let mut device_list: Vec<Phone> = vec![];
                 if !RE.is_match(&devices) {
@@ -330,7 +322,116 @@ pub async fn get_devices_list() -> Vec<Phone> {
                 let test: Vec<Phone> = vec![];
                 OperationResult::Retry(test)
             }
-        },
-    )
+        }
+    })
     .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_request_builder_with_user() {
+        let user = User {
+            id: 0,
+            index: 0,
+            protected: false,
+        };
+        let commands = vec!["pm uninstall", "pm clear"];
+        let result = request_builder(&commands, "com.example.app", Some(&user));
+
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], "pm uninstall --user 0 com.example.app");
+        assert_eq!(result[1], "pm clear --user 0 com.example.app");
+    }
+
+    #[test]
+    fn test_request_builder_without_user() {
+        let commands = vec!["pm uninstall", "pm clear"];
+        let result = request_builder(&commands, "com.example.app", None);
+
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], "pm uninstall com.example.app");
+        assert_eq!(result[1], "pm clear com.example.app");
+    }
+
+    #[test]
+    fn test_request_builder_empty_commands() {
+        let commands: Vec<&str> = vec![];
+        let result = request_builder(&commands, "com.example.app", None);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_user_flag_with_user() {
+        let user = User {
+            id: 10,
+            index: 1,
+            protected: false,
+        };
+        assert_eq!(user_flag(Some(&user)), " --user 10");
+    }
+
+    #[test]
+    fn test_user_flag_without_user() {
+        assert_eq!(user_flag(None), "");
+    }
+
+    #[test]
+    fn test_phone_default() {
+        let phone = Phone::default();
+        assert_eq!(phone.model, "fetching devices...");
+        assert_eq!(phone.android_sdk, 0);
+        assert!(phone.user_list.is_empty());
+        assert!(phone.adb_id.is_empty());
+    }
+
+    #[test]
+    fn test_phone_display() {
+        let phone = Phone {
+            model: "Samsung Galaxy S21".to_string(),
+            android_sdk: 31,
+            user_list: vec![],
+            adb_id: "abc123".to_string(),
+        };
+        assert_eq!(phone.to_string(), "Samsung Galaxy S21");
+    }
+
+    #[test]
+    fn test_user_display() {
+        let user = User {
+            id: 0,
+            index: 0,
+            protected: false,
+        };
+        assert_eq!(user.to_string(), "user 0");
+    }
+
+    #[test]
+    fn test_user_default() {
+        let user = User::default();
+        assert_eq!(user.id, 0);
+        assert_eq!(user.index, 0);
+        assert!(!user.protected);
+    }
+
+    #[test]
+    fn test_core_package_from_package_row_ref() {
+        use crate::core::uad_lists::{Removal, UadList};
+        use crate::gui::widgets::package_row::PackageRow;
+
+        let mut row = PackageRow::new(
+            "com.test.app",
+            PackageState::Enabled,
+            "Test app",
+            UadList::Oem,
+            Removal::Recommended,
+            false,
+            false,
+        );
+        let core: CorePackage = CorePackage::from(&row);
+        assert_eq!(core.name, "com.test.app");
+        assert_eq!(core.state, PackageState::Enabled);
+    }
 }

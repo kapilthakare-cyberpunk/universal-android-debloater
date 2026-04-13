@@ -9,10 +9,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::{fmt, fs};
 
-pub fn fetch_packages(
-    uad_lists: &HashMap<String, Package>,
-    user_id: Option<&User>,
-) -> Vec<PackageRow> {
+pub fn fetch_packages(uad_lists: &HashMap<String, Package>, user_id: Option<&User>) -> Vec<PackageRow> {
     let all_system_packages = list_all_system_packages(user_id); // installed and uninstalled packages
     let enabled_system_packages = hashset_system_packages(PackageState::Enabled, user_id);
     let disabled_system_packages = hashset_system_packages(PackageState::Disabled, user_id);
@@ -43,8 +40,7 @@ pub fn fetch_packages(
             state = PackageState::Disabled;
         }
 
-        let package_row =
-            PackageRow::new(p_name, state, description, uad_list, removal, false, false);
+        let package_row = PackageRow::new(p_name, state, description, uad_list, removal, false, false);
         user_package.push(package_row);
     }
     user_package.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
@@ -132,5 +128,63 @@ impl fmt::Display for DisplayablePath {
         );
 
         write!(f, "{stem}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_string_to_theme_valid() {
+        assert_eq!(string_to_theme("Dark"), Theme::Dark);
+        assert_eq!(string_to_theme("Light"), Theme::Light);
+        assert_eq!(string_to_theme("Lupin"), Theme::Lupin);
+    }
+
+    #[test]
+    fn test_string_to_theme_invalid() {
+        // Invalid themes should default to Lupin
+        assert_eq!(string_to_theme(""), Theme::Lupin);
+        assert_eq!(string_to_theme("invalid"), Theme::Lupin);
+        assert_eq!(string_to_theme("dark"), Theme::Lupin); // case-sensitive
+        assert_eq!(string_to_theme("DARK"), Theme::Lupin);
+    }
+
+    #[test]
+    fn test_displayable_path_display() {
+        let path = DisplayablePath {
+            path: PathBuf::from("/some/path/test_file.json"),
+        };
+        assert_eq!(path.to_string(), "test_file");
+    }
+
+    #[test]
+    fn test_displayable_path_no_extension() {
+        let path = DisplayablePath {
+            path: PathBuf::from("/some/path/backup"),
+        };
+        assert_eq!(path.to_string(), "backup");
+    }
+
+    #[test]
+    fn test_format_diff_time_from_now_recent() {
+        let now = Utc::now();
+        let result = format_diff_time_from_now(now);
+        assert!(result.contains("min(s) ago"));
+    }
+
+    #[test]
+    fn test_format_diff_time_from_now_hours() {
+        let two_hours_ago = Utc::now() - chrono::Duration::hours(2);
+        let result = format_diff_time_from_now(two_hours_ago);
+        assert!(result.contains("hour(s) ago"));
+    }
+
+    #[test]
+    fn test_format_diff_time_from_now_days() {
+        let three_days_ago = Utc::now() - chrono::Duration::days(3);
+        let result = format_diff_time_from_now(three_days_ago);
+        assert!(result.contains("day(s) ago"));
     }
 }

@@ -14,10 +14,7 @@ use views::settings::{Message as SettingsMessage, Settings as SettingsView};
 use widgets::navigation_menu::nav_menu;
 
 use iced::widget::column;
-use iced::{
-    window::Settings as Window, Alignment, Application, Command, Element, Length, Renderer,
-    Settings,
-};
+use iced::{window::Settings as Window, Alignment, Application, Command, Element, Length, Renderer, Settings};
 use std::{env, path::PathBuf};
 
 #[cfg(feature = "self-update")]
@@ -78,10 +75,7 @@ impl Application for UadGui {
             Self::default(),
             Command::batch([
                 Command::perform(get_devices_list(), Message::LoadDevices),
-                Command::perform(
-                    async move { get_latest_release() },
-                    Message::GetLatestRelease,
-                ),
+                Command::perform(async move { get_latest_release() }, Message::GetLatestRelease),
             ]),
         )
     }
@@ -123,10 +117,7 @@ impl Application for UadGui {
             Message::AboutPressed => {
                 self.view = View::About;
                 self.update_state.self_update = SelfUpdateState::default();
-                Command::perform(
-                    async move { get_latest_release() },
-                    Message::GetLatestRelease,
-                )
+                Command::perform(async move { get_latest_release() }, Message::GetLatestRelease)
             }
             Message::SettingsPressed => {
                 self.view = View::Settings;
@@ -140,10 +131,9 @@ impl Application for UadGui {
                 self.apps_view = AppsView::default();
                 self.selected_device = None;
                 self.devices_list = vec![];
-                Command::perform(
-                    perform_adb_commands("reboot".to_string(), CommandType::Shell),
-                    |_| Message::Nothing,
-                )
+                Command::perform(perform_adb_commands("reboot".to_string(), CommandType::Shell), |_| {
+                    Message::Nothing
+                })
             }
             Message::AppsAction(msg) => self
                 .apps_view
@@ -176,9 +166,7 @@ impl Application for UadGui {
                     SettingsMessage::MultiUserMode(toggled) => {
                         if toggled {
                             for user in self.apps_view.phone_packages.clone() {
-                                for (i, _) in
-                                    user.iter().enumerate().filter(|&(_, pkg)| pkg.selected)
-                                {
+                                for (i, _) in user.iter().enumerate().filter(|&(_, pkg)| pkg.selected) {
                                     for u in self
                                         .selected_device
                                         .as_ref()
@@ -210,24 +198,15 @@ impl Application for UadGui {
                 match msg {
                     AboutMessage::UpdateUadLists => {
                         self.update_state.uad_list = UadListState::Downloading;
-                        self.apps_view.loading_state =
-                            ListLoadingState::DownloadingList(String::new());
+                        self.apps_view.loading_state = ListLoadingState::DownloadingList(String::new());
                         self.update(Message::AppsAction(AppsMessage::LoadUadList(true)))
                     }
                     AboutMessage::DoSelfUpdate => {
                         #[cfg(feature = "self-update")]
-                        if self.update_state.self_update.latest_release.is_some() {
+                        if let Some(release) = self.update_state.self_update.latest_release.clone() {
                             self.update_state.self_update.status = SelfUpdateStatus::Updating;
-                            self.apps_view.loading_state =
-                                ListLoadingState::_UpdatingUad(String::new());
+                            self.apps_view.loading_state = ListLoadingState::_UpdatingUad(String::new());
                             let bin_name = bin_name().to_owned();
-                            let release = self
-                                .update_state
-                                .self_update
-                                .latest_release
-                                .as_ref()
-                                .unwrap()
-                                .clone();
                             Command::perform(
                                 download_update_to_temp_file(bin_name, release),
                                 Message::_NewReleaseDownloaded,
@@ -246,10 +225,7 @@ impl Application for UadGui {
                 self.view = View::List;
                 env::set_var("ANDROID_SERIAL", s_device.adb_id);
                 info!("{:-^65}", "-");
-                info!(
-                    "ANDROID_SDK: {} | DEVICE: {}",
-                    s_device.android_sdk, s_device.model
-                );
+                info!("ANDROID_SDK: {} | DEVICE: {}", s_device.android_sdk, s_device.model);
                 info!("{:-^65}", "-");
                 self.apps_view.loading_state = ListLoadingState::FindingPhones(String::new());
 
@@ -320,7 +296,7 @@ impl Application for UadGui {
         }
     }
 
-    fn view(&self) -> Element<Self::Message, Renderer<Self::Theme>> {
+    fn view(&self) -> Element<'_, Self::Message, Renderer<Self::Theme>> {
         let navigation_container = nav_menu(
             &self.devices_list,
             self.selected_device.clone(),
@@ -334,14 +310,8 @@ impl Application for UadGui {
                 .apps_view
                 .view(&self.settings_view, &selected_device)
                 .map(Message::AppsAction),
-            View::About => self
-                .about_view
-                .view(&self.update_state)
-                .map(Message::AboutAction),
-            View::Settings => self
-                .settings_view
-                .view(&selected_device)
-                .map(Message::SettingsAction),
+            View::About => self.about_view.view(&self.update_state).map(Message::AboutAction),
+            View::Settings => self.settings_view.view(&selected_device).map(Message::SettingsAction),
         };
 
         column![navigation_container, main_container]

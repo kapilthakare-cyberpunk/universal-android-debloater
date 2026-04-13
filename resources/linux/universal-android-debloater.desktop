@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Universal Android Debloater
+Comment=Remove bloatware from Android devices via ADB
+Exec=uad_gui
+Icon=universal-android-debloater
+Terminal=false
+Type=Application
+Categories=Utility;System;
+Keywords=android;debloat;adb;bloatware;privacy;
+StartupWMClass=uad_gui

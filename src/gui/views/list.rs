@@ -1,9 +1,7 @@
 use crate::core::config::DeviceSettings;
 use crate::core::sync::{apply_pkg_state_commands, perform_adb_commands, CommandType, Phone, User};
 use crate::core::theme::Theme;
-use crate::core::uad_lists::{
-    load_debloat_lists, Opposite, Package, PackageState, Removal, UadList, UadListState,
-};
+use crate::core::uad_lists::{load_debloat_lists, Opposite, Package, PackageState, Removal, UadList, UadListState};
 use crate::core::utils::fetch_packages;
 use crate::gui::style;
 use crate::gui::widgets::navigation_menu::ICONS;
@@ -14,8 +12,8 @@ use crate::gui::views::settings::Settings;
 use crate::gui::widgets::modal::Modal;
 use crate::gui::widgets::package_row::{Message as RowMessage, PackageRow};
 use iced::widget::{
-    button, column, container, horizontal_space, pick_list, radio, row, scrollable, text,
-    text_input, tooltip, vertical_rule, Space,
+    button, column, container, horizontal_space, pick_list, radio, row, scrollable, text, text_input, tooltip,
+    vertical_rule, Space,
 };
 use iced::{alignment, Alignment, Command, Element, Length, Renderer};
 
@@ -47,8 +45,8 @@ pub struct List {
     pub loading_state: LoadingState,
     pub uad_lists: HashMap<String, Package>,
     pub phone_packages: Vec<Vec<PackageRow>>, // packages of all users of the phone
-    filtered_packages: Vec<usize>, // phone_packages indexes of the selected user (= what you see on screen)
-    selected_packages: Vec<(usize, usize)>, // Vec of (user_index, pkg_index)
+    filtered_packages: Vec<usize>,            // phone_packages indexes of the selected user (= what you see on screen)
+    selected_packages: Vec<(usize, usize)>,   // Vec of (user_index, pkg_index)
     selected_package_state: Option<PackageState>,
     selected_removal: Option<Removal>,
     selected_list: Option<UadList>,
@@ -112,9 +110,8 @@ impl List {
             Message::RestoringDevice(output) => {
                 if let Ok(res) = output {
                     if let CommandType::PackageManager(p) = res {
-                        self.loading_state = LoadingState::RestoringDevice(
-                            self.phone_packages[i_user][p.index].name.clone(),
-                        );
+                        self.loading_state =
+                            LoadingState::RestoringDevice(self.phone_packages[i_user][p.index].name.clone());
                     }
                 } else {
                     self.loading_state = LoadingState::RestoringDevice("Error [TODO]".to_string());
@@ -221,8 +218,7 @@ impl List {
                             if toggle {
                                 self.selected_packages.push((i_user, i_package));
                             } else {
-                                self.selected_packages
-                                    .retain(|&x| x.1 != i_package || x.0 != i_user);
+                                self.selected_packages.retain(|&x| x.1 != i_package || x.0 != i_user);
                             }
                         }
                         Command::none()
@@ -262,8 +258,7 @@ impl List {
                     let package = &mut self.phone_packages[p.i_user][p.index];
                     package.state = package.state.opposite(settings.device.disable_mode);
                     package.selected = false;
-                    self.selected_packages
-                        .retain(|&x| x.1 != p.index && x.0 != p.i_user);
+                    self.selected_packages.retain(|&x| x.1 != p.index && x.0 != p.i_user);
                     Self::filter_package_lists(self);
                 }
                 Command::none()
@@ -281,11 +276,7 @@ impl List {
         }
     }
 
-    pub fn view(
-        &self,
-        settings: &Settings,
-        selected_device: &Phone,
-    ) -> Element<Message, Renderer<Theme>> {
+    pub fn view(&self, settings: &Settings, selected_device: &Phone) -> Element<'_, Message, Renderer<Theme>> {
         match &self.loading_state {
             LoadingState::DownloadingList(_) => {
                 let text = "Downloading latest UAD lists from Github. Please wait...";
@@ -308,12 +299,8 @@ impl List {
                 waiting_view(settings, &text, false)
             }
             LoadingState::Ready(_) => {
-                let search_packages = text_input(
-                    "Search packages...",
-                    &self.input_value,
-                    Message::SearchInputChanged,
-                )
-                .padding(5);
+                let search_packages =
+                    text_input("Search packages...", &self.input_value, Message::SearchInputChanged).padding(5);
 
                 let user_picklist = pick_list(
                     selected_device.user_list.clone(),
@@ -324,19 +311,14 @@ impl List {
 
                 let divider = Space::new(Length::Fill, Length::Shrink);
 
-                let list_picklist =
-                    pick_list(&UadList::ALL[..], self.selected_list, Message::ListSelected);
+                let list_picklist = pick_list(&UadList::ALL[..], self.selected_list, Message::ListSelected);
                 let package_state_picklist = pick_list(
                     &PackageState::ALL[..],
                     self.selected_package_state,
                     Message::PackageStateSelected,
                 );
 
-                let removal_picklist = pick_list(
-                    &Removal::ALL[..],
-                    self.selected_removal,
-                    Message::RemovalSelected,
-                );
+                let removal_picklist = pick_list(&Removal::ALL[..], self.selected_removal, Message::RemovalSelected);
 
                 let control_panel = row![
                     search_packages,
@@ -351,23 +333,20 @@ impl List {
                 .spacing(10)
                 .padding([0, 16, 0, 0]);
 
-                let packages =
-                    self.filtered_packages
-                        .iter()
-                        .fold(column![].spacing(6), |col, i| {
-                            col.push(
-                                self.phone_packages[self.selected_user.unwrap().index][*i]
-                                    .view(settings, selected_device)
-                                    .map(move |msg| Message::List(*i, msg)),
-                            )
-                        });
+                let packages = self.filtered_packages.iter().fold(column![].spacing(6), |col, i| {
+                    col.push(
+                        self.phone_packages[self.selected_user.unwrap().index][*i]
+                            .view(settings, selected_device)
+                            .map(move |msg| Message::List(*i, msg)),
+                    )
+                });
 
                 let packages_scrollable = scrollable(packages)
                     .height(Length::FillPortion(6))
                     .style(style::Scrollable::Packages);
 
-                let description_scroll = scrollable(text(&self.description).width(Length::Fill))
-                    .style(style::Scrollable::Description);
+                let description_scroll =
+                    scrollable(text(&self.description).width(Length::Fill)).style(style::Scrollable::Description);
 
                 let description_panel = container(description_scroll)
                     .padding(6)
@@ -376,19 +355,12 @@ impl List {
                     .style(style::Container::Frame);
 
                 let review_selection = if !self.selected_packages.is_empty() {
-                    button(text(format!(
-                        "Review selection ({})",
-                        self.selected_packages.len()
-                    )))
-                    .on_press(Message::ApplyActionOnSelection)
-                    .padding(5)
-                    .style(style::Button::Primary)
+                    button(text(format!("Review selection ({})", self.selected_packages.len())))
+                        .on_press(Message::ApplyActionOnSelection)
+                        .padding(5)
+                        .style(style::Button::Primary)
                 } else {
-                    button(text(format!(
-                        "Review selection ({})",
-                        self.selected_packages.len()
-                    )))
-                    .padding(5)
+                    button(text(format!("Review selection ({})", self.selected_packages.len()))).padding(5)
                 };
 
                 let select_all_btn = button("Select all")
@@ -429,23 +401,15 @@ impl List {
                 let content = if selected_device.user_list.is_empty()
                     || !self.phone_packages[self.selected_user.unwrap().index].is_empty()
                 {
-                    column![
-                        control_panel,
-                        packages_scrollable,
-                        description_panel,
-                        action_row,
-                    ]
-                    .width(Length::Fill)
-                    .spacing(10)
-                    .align_items(Alignment::Center)
+                    column![control_panel, packages_scrollable, description_panel, action_row,]
+                        .width(Length::Fill)
+                        .spacing(10)
+                        .align_items(Alignment::Center)
                 } else {
-                    column![
-                        control_panel,
-                        container(unavailable).height(Length::Fill).center_y(),
-                    ]
-                    .width(Length::Fill)
-                    .spacing(10)
-                    .align_items(Alignment::Center)
+                    column![control_panel, container(unavailable).height(Length::Fill).center_y(),]
+                        .width(Length::Fill)
+                        .spacing(10)
+                        .align_items(Alignment::Center)
                 };
                 if self.selection_modal {
                     Modal::new(
@@ -470,7 +434,7 @@ impl List {
         device: &Phone,
         settings: &Settings,
         packages: &[PackageRow],
-    ) -> Element<Message, Renderer<Theme>> {
+    ) -> Element<'_, Message, Renderer<Theme>> {
         // (nb_to_restore, nb_to_remove)
         let mut h_recap: HashMap<Removal, (u8, u8)> = HashMap::new();
         for p in packages.iter().filter(|p| p.selected) {
@@ -481,28 +445,29 @@ impl List {
             }
         }
 
-        let radio_btn_users = device.user_list.iter().filter(|&u| !u.protected).fold(
-            row![].spacing(10),
-            |row, user| {
-                row.push(
-                    radio(
-                        format!("{}", user.clone()),
-                        *user,
-                        self.selected_user,
-                        Message::ModalUserSelected,
+        let radio_btn_users =
+            device
+                .user_list
+                .iter()
+                .filter(|&u| !u.protected)
+                .fold(row![].spacing(10), |row, user| {
+                    row.push(
+                        radio(
+                            format!("{}", user.clone()),
+                            *user,
+                            self.selected_user,
+                            Message::ModalUserSelected,
+                        )
+                        .size(23),
                     )
-                    .size(23),
-                )
-            },
-        );
+                });
 
-        let title_ctn =
-            container(row![text("Review your selection").size(25)].align_items(Alignment::Center))
-                .width(Length::Fill)
-                .style(style::Container::Frame)
-                .padding([10, 0, 10, 0])
-                .center_y()
-                .center_x();
+        let title_ctn = container(row![text("Review your selection").size(25)].align_items(Alignment::Center))
+            .width(Length::Fill)
+            .style(style::Container::Frame)
+            .padding([10, 0, 10, 0])
+            .center_y()
+            .center_x();
 
         let users_ctn = container(radio_btn_users)
             .padding(10)
@@ -511,8 +476,7 @@ impl List {
 
         let explaination_ctn = container(
             row![
-                text("The action for the selected user will be applied to all other users")
-                    .style(style::Text::Danger),
+                text("The action for the selected user will be applied to all other users").style(style::Text::Danger),
                 tooltip(
                     text("\u{EA0C}")
                         .font(ICONS)
@@ -566,53 +530,32 @@ impl List {
                             self.selected_packages
                                 .iter()
                                 .filter(|s| s.0 == self.selected_user.unwrap().index)
-                                .fold(
-                                    column![].spacing(6).width(Length::Fill),
-                                    |col, selection| {
-                                        col.push(
-                                            row![
-                                                row![text(
-                                                    self.phone_packages[selection.0][selection.1]
-                                                        .removal
-                                                )]
+                                .fold(column![].spacing(6).width(Length::Fill), |col, selection| {
+                                    col.push(
+                                        row![
+                                            row![text(self.phone_packages[selection.0][selection.1].removal)]
                                                 .width(100),
-                                                row![text(
-                                                    self.phone_packages[selection.0][selection.1]
-                                                        .uad_list
-                                                )]
+                                            row![text(self.phone_packages[selection.0][selection.1].uad_list)]
                                                 .width(60),
-                                                row![text(
-                                                    self.phone_packages[selection.0][selection.1]
-                                                        .name
-                                                        .clone()
-                                                ),],
-                                                horizontal_space(Length::Fill),
-                                                row![match self.phone_packages[selection.0]
-                                                    [selection.1]
-                                                    .state
-                                                {
-                                                    PackageState::Enabled =>
-                                                        if settings.device.disable_mode {
-                                                            text("Disable")
-                                                                .style(style::Text::Danger)
-                                                        } else {
-                                                            text("Uninstall")
-                                                                .style(style::Text::Danger)
-                                                        },
-                                                    PackageState::Disabled =>
-                                                        text("Enable").style(style::Text::Ok),
-                                                    PackageState::Uninstalled =>
-                                                        text("Restore").style(style::Text::Ok),
-                                                    PackageState::All => text("Impossible")
-                                                        .style(style::Text::Danger),
-                                                },]
-                                                .width(60),
-                                            ]
-                                            .width(Length::Fill)
-                                            .spacing(20),
-                                        )
-                                    },
-                                )
+                                            row![text(self.phone_packages[selection.0][selection.1].name.clone()),],
+                                            horizontal_space(Length::Fill),
+                                            row![match self.phone_packages[selection.0][selection.1].state {
+                                                PackageState::Enabled =>
+                                                    if settings.device.disable_mode {
+                                                        text("Disable").style(style::Text::Danger)
+                                                    } else {
+                                                        text("Uninstall").style(style::Text::Danger)
+                                                    },
+                                                PackageState::Disabled => text("Enable").style(style::Text::Ok),
+                                                PackageState::Uninstalled => text("Restore").style(style::Text::Ok),
+                                                PackageState::All => text("Impossible").style(style::Text::Danger),
+                                            },]
+                                            .width(60),
+                                        ]
+                                        .width(Length::Fill)
+                                        .spacing(20),
+                                    )
+                                })
                         },
                     )
                     .padding(10)
@@ -628,9 +571,7 @@ impl List {
         .padding([0, 10, 0, 10]);
 
         container(
-            if device.user_list.iter().filter(|&u| !u.protected).count() > 1
-                && settings.device.multi_user_mode
-            {
+            if device.user_list.iter().filter(|&u| !u.protected).count() > 1 && settings.device.multi_user_mode {
                 column![
                     title_ctn,
                     users_ctn,
@@ -686,28 +627,18 @@ impl List {
             .collect();
     }
 
-    async fn load_packages(
-        uad_list: HashMap<String, Package>,
-        user_list: Vec<User>,
-    ) -> Vec<Vec<PackageRow>> {
+    async fn load_packages(uad_list: HashMap<String, Package>, user_list: Vec<User>) -> Vec<Vec<PackageRow>> {
         let mut phone_packages = vec![];
 
         if user_list.len() <= 1 {
             phone_packages.push(fetch_packages(&uad_list, None));
         } else {
-            phone_packages.extend(
-                user_list
-                    .iter()
-                    .map(|user| fetch_packages(&uad_list, Some(user))),
-            );
+            phone_packages.extend(user_list.iter().map(|user| fetch_packages(&uad_list, Some(user))));
         };
         phone_packages
     }
 
-    async fn init_apps_view(
-        remote: bool,
-        phone: Phone,
-    ) -> (HashMap<String, Package>, UadListState) {
+    async fn init_apps_view(remote: bool, phone: Phone) -> (HashMap<String, Package>, UadListState) {
         let (uad_lists, _) = load_debloat_lists(remote);
         match uad_lists {
             Ok(list) => {
@@ -725,11 +656,7 @@ impl List {
     }
 }
 
-fn waiting_view<'a>(
-    _settings: &Settings,
-    displayed_text: &str,
-    btn: bool,
-) -> Element<'a, Message, Renderer<Theme>> {
+fn waiting_view<'a>(_settings: &Settings, displayed_text: &str, btn: bool) -> Element<'a, Message, Renderer<Theme>> {
     let col = if btn {
         let no_internet_btn = button("No internet?")
             .padding(5)
@@ -767,9 +694,11 @@ fn build_action_pkg_commands(
     let wanted_state = pkg.state.opposite(settings.disable_mode);
 
     let mut commands = vec![];
-    for u in device.user_list.iter().filter(|&&u| {
-        !u.protected && (packages[u.index][selection.1].selected || settings.multi_user_mode)
-    }) {
+    for u in device
+        .user_list
+        .iter()
+        .filter(|&&u| !u.protected && (packages[u.index][selection.1].selected || settings.multi_user_mode))
+    {
         let u_pkg = packages[u.index][selection.1].clone();
         let actions = if settings.multi_user_mode {
             apply_pkg_state_commands(&u_pkg.into(), wanted_state, u, device)
@@ -814,8 +743,7 @@ fn recap<'a>(
                     text("Uninstall").style(style::Text::Danger)
                 },
                 horizontal_space(Length::Fill),
-                text(recap.entry(removal).or_insert((0, 0)).0.to_string())
-                    .style(style::Text::Danger)
+                text(recap.entry(removal).or_insert((0, 0)).0.to_string()).style(style::Text::Danger)
             ]
             .width(Length::FillPortion(1)),
             vertical_rule(5),

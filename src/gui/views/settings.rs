@@ -1,7 +1,5 @@
 use crate::core::config::{BackupSettings, Config, DeviceSettings, GeneralSettings};
-use crate::core::save::{
-    backup_phone, list_available_backup_user, list_available_backups, restore_backup, BACKUP_DIR,
-};
+use crate::core::save::{backup_phone, list_available_backup_user, list_available_backups, restore_backup, BACKUP_DIR};
 use crate::core::sync::{get_android_sdk, perform_adb_commands, CommandType, Phone};
 use crate::core::theme::Theme;
 use crate::core::utils::{open_url, string_to_theme, DisplayablePath};
@@ -131,8 +129,7 @@ impl Settings {
             ),
             Message::DeviceBackedUp(_) => {
                 info!("[BACKUP] Backup successfully created");
-                self.device.backup.backups =
-                    list_available_backups(&BACKUP_DIR.join(phone.adb_id.clone()));
+                self.device.backup.backups = list_available_backups(&BACKUP_DIR.join(phone.adb_id.clone()));
                 self.device.backup.selected = self.device.backup.backups.first().cloned();
                 Command::none()
             }
@@ -149,10 +146,7 @@ impl Settings {
                         for command in p.commands.clone() {
                             *nb_running_async_adb_commands += 1;
                             commands.push(Command::perform(
-                                perform_adb_commands(
-                                    command,
-                                    CommandType::PackageManager(p_info.clone()),
-                                ),
+                                perform_adb_commands(command, CommandType::PackageManager(p_info.clone())),
                                 Message::RestoringDevice,
                             ));
                         }
@@ -161,8 +155,7 @@ impl Settings {
                         if get_android_sdk() == 0 {
                             self.device.backup.backup_state = "Device is not connected".to_string();
                         } else {
-                            self.device.backup.backup_state =
-                                "Device state is already restored".to_string();
+                            self.device.backup.backup_state = "Device state is already restored".to_string();
                         }
                     }
                     info!(
@@ -182,20 +175,18 @@ impl Settings {
         }
     }
 
-    pub fn view(&self, phone: &Phone) -> Element<Message, Renderer<Theme>> {
-        let radio_btn_theme = Theme::ALL
-            .iter()
-            .fold(row![].spacing(10), |column, option| {
-                column.push(
-                    radio(
-                        format!("{}", option.clone()),
-                        *option,
-                        Some(string_to_theme(&self.general.theme)),
-                        Message::ApplyTheme,
-                    )
-                    .size(23),
+    pub fn view(&self, phone: &Phone) -> Element<'_, Message, Renderer<Theme>> {
+        let radio_btn_theme = Theme::ALL.iter().fold(row![].spacing(10), |column, option| {
+            column.push(
+                radio(
+                    format!("{}", option.clone()),
+                    *option,
+                    Some(string_to_theme(&self.general.theme)),
+                    Message::ApplyTheme,
                 )
-            });
+                .size(23),
+            )
+        });
         let theme_ctn = container(radio_btn_theme)
             .padding(10)
             .width(Length::Fill)
@@ -209,10 +200,9 @@ impl Settings {
         )
         .style(style::CheckBox::SettingsEnabled);
 
-        let expert_mode_descr =
-            text("Most of unsafe packages are known to bootloop the device if removed.")
-                .style(style::Text::Commentary)
-                .size(15);
+        let expert_mode_descr = text("Most of unsafe packages are known to bootloop the device if removed.")
+            .style(style::Text::Commentary)
+            .size(15);
 
         let general_ctn = container(column![expert_mode_checkbox, expert_mode_descr].spacing(10))
             .padding(10)
@@ -222,8 +212,7 @@ impl Settings {
 
         let warning_ctn = container(
             row![
-                text("The following settings only affect the currently selected device :")
-                    .style(style::Text::Danger),
+                text("The following settings only affect the currently selected device :").style(style::Text::Danger),
                 text(phone.model.clone()),
                 Space::new(Length::Fill, Length::Shrink),
                 text(phone.adb_id.clone()).style(style::Text::Commentary)
@@ -287,11 +276,7 @@ impl Settings {
         .style(disable_checkbox_style);
 
         let disable_setting_row = if phone.android_sdk >= 23 {
-            row![
-                disable_mode_checkbox,
-                Space::new(Length::Fill, Length::Shrink),
-            ]
-            .width(Length::Fill)
+            row![disable_mode_checkbox, Space::new(Length::Fill, Length::Shrink),].width(Length::Fill)
         } else {
             row![
                 disable_mode_checkbox,
@@ -342,9 +327,7 @@ impl Settings {
         };
 
         let locate_backup_btn = if self.device.backup.backups.is_empty() {
-            button("Open backup directory")
-                .padding(5)
-                .style(style::Button::Primary)
+            button("Open backup directory").padding(5).style(style::Button::Primary)
         } else {
             button("Open backup directory")
                 .on_press(Message::UrlPressed(BACKUP_DIR.join(phone.adb_id.clone())))

@@ -1,4 +1,5 @@
 #![windows_subsystem = "windows"]
+#![allow(dead_code)] // Some enum variants carry data that's pattern-matched but not directly read
 #[macro_use]
 extern crate log;
 
@@ -48,7 +49,6 @@ pub fn setup_logger() -> Result<(), fern::InitError> {
 
     let default_log_level = log::LevelFilter::Warn;
     let log_file = OpenOptions::new()
-        .write(true)
         .create(true)
         .append(true)
         .truncate(false)

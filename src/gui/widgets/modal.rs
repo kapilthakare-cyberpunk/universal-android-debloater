@@ -1,8 +1,8 @@
 use iced_native::alignment::Alignment;
 use iced_native::widget::{self, Tree};
 use iced_native::{
-    event, layout, mouse, overlay, renderer, Clipboard, Color, Element, Event, Layout, Length,
-    Point, Rectangle, Shell, Size, Widget,
+    event, layout, mouse, overlay, renderer, Clipboard, Color, Element, Event, Layout, Length, Point, Rectangle, Shell,
+    Size, Widget,
 };
 
 /// A widget that centers a modal element over some base element
@@ -128,13 +128,9 @@ where
         viewport: &Rectangle,
         renderer: &Renderer,
     ) -> mouse::Interaction {
-        self.base.as_widget().mouse_interaction(
-            &state.children[0],
-            layout,
-            cursor_position,
-            viewport,
-            renderer,
-        )
+        self.base
+            .as_widget()
+            .mouse_interaction(&state.children[0], layout, cursor_position, viewport, renderer)
     }
 
     fn operate(
@@ -157,8 +153,7 @@ struct Overlay<'a, 'b, Message, Renderer> {
     on_blur: Option<Message>,
 }
 
-impl<'a, 'b, Message, Renderer> overlay::Overlay<Message, Renderer>
-    for Overlay<'a, 'b, Message, Renderer>
+impl<'a, 'b, Message, Renderer> overlay::Overlay<Message, Renderer> for Overlay<'a, 'b, Message, Renderer>
 where
     Renderer: iced_native::Renderer,
     Message: Clone,
@@ -241,18 +236,10 @@ where
         );
     }
 
-    fn operate(
-        &mut self,
-        layout: Layout<'_>,
-        renderer: &Renderer,
-        operation: &mut dyn widget::Operation<Message>,
-    ) {
-        self.content.as_widget().operate(
-            self.tree,
-            layout.children().next().unwrap(),
-            renderer,
-            operation,
-        );
+    fn operate(&mut self, layout: Layout<'_>, renderer: &Renderer, operation: &mut dyn widget::Operation<Message>) {
+        self.content
+            .as_widget()
+            .operate(self.tree, layout.children().next().unwrap(), renderer, operation);
     }
 
     fn mouse_interaction(

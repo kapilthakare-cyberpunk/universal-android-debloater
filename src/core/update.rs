@@ -73,25 +73,16 @@ pub async fn download_file<T: ToString + Send>(url: T, dest_file: PathBuf) -> Re
 /// executable to a temp path, renames the new version as the original file name,
 /// then returns both the original file name (new version) and temp path (old version)
 #[cfg(feature = "self-update")]
-pub async fn download_update_to_temp_file(
-    bin_name: String,
-    release: Release,
-) -> Result<(PathBuf, PathBuf), ()> {
+pub async fn download_update_to_temp_file(bin_name: String, release: Release) -> Result<(PathBuf, PathBuf), ()> {
     let current_bin_path = std::env::current_exe().map_err(|_| ())?;
 
     // Path to download the new version to
-    let download_path = current_bin_path
-        .parent()
-        .ok_or(())?
-        .join(format!("tmp_{bin_name}"));
+    let download_path = current_bin_path.parent().ok_or(())?.join(format!("tmp_{bin_name}"));
 
     // Path to temporarily force rename current process to, se we can then
     // rename `download_path` to `current_bin_path` and then launch new version
     // cleanly as `current_bin_path`
-    let tmp_path = current_bin_path
-        .parent()
-        .ok_or(())?
-        .join(format!("tmp2_{bin_name}"));
+    let tmp_path = current_bin_path.parent().ok_or(())?.join(format!("tmp2_{bin_name}"));
 
     // MacOS and Linux release are gziped tarball
     #[cfg(not(target_os = "windows"))]
@@ -123,12 +114,7 @@ pub async fn download_update_to_temp_file(
     // For Windows we download the new binary directly
     #[cfg(target_os = "windows")]
     {
-        let asset = release
-            .assets
-            .iter()
-            .find(|a| a.name == bin_name)
-            .cloned()
-            .ok_or(())?;
+        let asset = release.assets.iter().find(|a| a.name == bin_name).cloned().ok_or(())?;
 
         if let Err(e) = download_file(asset.download_url, download_path.clone()).await {
             error!("Couldn't download UAD update: {}", e);
@@ -173,9 +159,7 @@ pub fn get_latest_release() -> Result<Option<Release>, ()> {
 pub fn get_latest_release() -> Result<Option<Release>, ()> {
     debug!("Checking for UAD update");
 
-    match ureq::get("https://api.github.com/repos/0x192/universal-android-debloater/releases")
-        .call()
-    {
+    match ureq::get("https://api.github.com/repos/0x192/universal-android-debloater/releases").call() {
         Ok(res) => {
             let release: Release = serde_json::from_value(
                 res.into_json::<serde_json::Value>()
@@ -185,9 +169,7 @@ pub fn get_latest_release() -> Result<Option<Release>, ()> {
                     .clone(),
             )
             .map_err(|_| ())?;
-            if release.tag_name.as_str() != "dev-build"
-                && release.tag_name.as_str() > env!("CARGO_PKG_VERSION")
-            {
+            if release.tag_name.as_str() != "dev-build" && release.tag_name.as_str() > env!("CARGO_PKG_VERSION") {
                 Ok(Some(release))
             } else {
                 Ok(None)
@@ -259,14 +241,12 @@ where
     let from = from.as_ref();
     let to = to.as_ref();
 
-    retry(Fibonacci::from_millis(1).take(21), || {
-        match fs::rename(from, to) {
-            Ok(_) => OperationResult::Ok(()),
-            Err(e) => match e.kind() {
-                io::ErrorKind::PermissionDenied => OperationResult::Retry(e),
-                _ => OperationResult::Err(e),
-            },
-        }
+    retry(Fibonacci::from_millis(1).take(21), || match fs::rename(from, to) {
+        Ok(_) => OperationResult::Ok(()),
+        Err(e) => match e.kind() {
+            io::ErrorKind::PermissionDenied => OperationResult::Retry(e),
+            _ => OperationResult::Err(e),
+        },
     })
     .map_err(|e| e.to_string())
 }
@@ -285,15 +265,12 @@ where
     // virus scanning file locks
     let path = path.as_ref();
 
-    retry(
-        Fibonacci::from_millis(1).take(21),
-        || match fs::remove_file(path) {
-            Ok(_) => OperationResult::Ok(()),
-            Err(e) => match e.kind() {
-                io::ErrorKind::PermissionDenied => OperationResult::Retry(e),
-                _ => OperationResult::Err(e),
-            },
+    retry(Fibonacci::from_millis(1).take(21), || match fs::remove_file(path) {
+        Ok(_) => OperationResult::Ok(()),
+        Err(e) => match e.kind() {
+            io::ErrorKind::PermissionDenied => OperationResult::Retry(e),
+            _ => OperationResult::Err(e),
         },
-    )
+    })
     .map_err(|e| e.to_string())
 }

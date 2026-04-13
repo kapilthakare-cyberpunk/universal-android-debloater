@@ -1,8 +1,9 @@
+// These types are used by iced's styling system through trait implementations
+#![allow(dead_code)]
+
 use crate::core::theme::Theme;
 use iced::overlay::menu;
-use iced::widget::{
-    button, checkbox, container, pick_list, radio, rule, scrollable, text, text_input,
-};
+use iced::widget::{button, checkbox, container, pick_list, radio, rule, scrollable, text, text_input};
 use iced::{application, Background, Color};
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -102,9 +103,7 @@ impl button::StyleSheet for Theme {
         };
 
         match style {
-            Button::Primary | Button::SelfUpdate | Button::Refresh => {
-                active_appearance(None, p.bright.primary)
-            }
+            Button::Primary | Button::SelfUpdate | Button::Refresh => active_appearance(None, p.bright.primary),
             Button::RestorePackage => active_appearance(None, p.bright.secondary),
             Button::NormalPackage => button::Appearance {
                 background: Some(Background::Color(p.base.foreground)),
@@ -125,9 +124,7 @@ impl button::StyleSheet for Theme {
                 border_color: p.normal.primary,
                 ..appearance
             },
-            Button::Unavailable | Button::UninstallPackage => {
-                active_appearance(None, p.bright.error)
-            }
+            Button::Unavailable | Button::UninstallPackage => active_appearance(None, p.bright.error),
         }
     }
 
@@ -142,15 +139,11 @@ impl button::StyleSheet for Theme {
         };
 
         match style {
-            Button::Primary | Button::SelfUpdate | Button::Refresh => {
-                hover_appearance(p.bright.primary, None)
-            }
+            Button::Primary | Button::SelfUpdate | Button::Refresh => hover_appearance(p.bright.primary, None),
             Button::NormalPackage => hover_appearance(p.normal.primary, Some(p.bright.surface)),
             Button::SelectedPackage => hover_appearance(p.normal.primary, None),
             Button::RestorePackage => hover_appearance(p.bright.secondary, None),
-            Button::Unavailable | Button::UninstallPackage => {
-                hover_appearance(p.bright.error, None)
-            }
+            Button::Unavailable | Button::UninstallPackage => hover_appearance(p.bright.error, None),
         }
     }
 
@@ -290,9 +283,7 @@ impl checkbox::StyleSheet for Theme {
 
         match style {
             CheckBox::PackageEnabled | CheckBox::SettingsEnabled => from_appearance(),
-            CheckBox::PackageDisabled | CheckBox::SettingsDisabled => {
-                self.active(style, is_checked)
-            }
+            CheckBox::PackageDisabled | CheckBox::SettingsDisabled => self.active(style, is_checked),
         }
     }
 }

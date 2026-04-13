@@ -1,20 +1,51 @@
 [package]
 name = "uad_gui"
-description = "A cross-platform GUI debloater for android devices"
-version = "0.5.1"
-authors = ["w1nst0n"]
+description = "A cross-platform GUI debloater for Android devices — remove bloatware with one click"
+version = "0.7.0"
+authors = ["Kapil Thakare <kapil@primesandzooms.com>", "w1nst0n"]
 license = "GPL-3.0"
-homepage = "https://github.com/0x192/universal-android-debloater"
-repository = "https://github.com/0x192/universal-android-debloater"
+homepage = "https://github.com/kapilthakare/universal-android-debloater"
+repository = "https://github.com/kapilthakare/universal-android-debloater"
+documentation = "https://github.com/kapilthakare/universal-android-debloater/wiki"
 readme = "README.md"
 keywords = ["debloater", "android", "adb", "privacy", "bloatware"]
 categories = ["gui"]
 edition = "2021"
+rust-version = "1.70"
+
+# Binary configuration for packaging
+[[bin]]
+name = "uad_gui"
+path = "src/main.rs"
+
+[package.metadata.deb]
+section = "utils"
+priority = "optional"
+assets = [
+    ["target/release/uad_gui", "usr/bin/", "755"],
+    ["resources/assets/icon.png", "usr/share/icons/hicolor/256x256/apps/universal-android-debloater.png", "644"],
+    ["resources/linux/universal-android-debloater.desktop", "usr/share/applications/", "644"],
+    ["README.md", "usr/share/doc/universal-android-debloater/README", "644"],
+]
+depends = "android-sdk-platform-tools, libgtk-3-0, libssl3"
+
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/uad_gui", dest = "/usr/bin/uad_gui", mode = "0755" },
+    { source = "resources/assets/icon.png", dest = "/usr/share/icons/hicolor/256x256/apps/universal-android-debloater.png", mode = "0644" },
+    { source = "resources/linux/universal-android-debloater.desktop", dest = "/usr/share/applications/universal-android-debloater.desktop", mode = "0644" },
+]
+
+[package.metadata.wix]
+upgrade-guid = "B460E1E0-4D8C-4F35-A4B2-C8E9F1A2B3C4"
+path-guid = "D1A2B3C4-D5E6-F7A8-B9C0-D1E2F3A4B5C6"
+license = false
+eula = false
 
 [features]
 default = ["wgpu", "self-update"]
-wgpu = []                         # Iced/wgpu is default
-glow = ["iced/glow"]              # OpenGL support
+wgpu = []                         # Iced/wgpu is default (Vulkan backend)
+glow = ["iced/glow"]              # OpenGL support (older hardware)
 self-update = ["flate2", "tar"]
 no-self-update = []
 
@@ -37,7 +68,20 @@ retry = { version = "^2.0.0" }
 flate2 = { version = "^1", optional = true }
 tar = { version = "^0.4", optional = true }
 
+[build-dependencies]
+chrono = { version = "^0.4", default-features = false, features = ["clock"] }
+
 [profile.release]
-opt-level = "s"
-lto = true
-strip = "symbols"
+opt-level = "s"           # Optimize for size
+lto = true                # Enable Link Time Optimization
+strip = "symbols"         # Strip symbols from binary
+codegen-units = 1         # Better optimization with single codegen unit
+panic = "abort"           # Smaller binaries (no unwind info)
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[profile.bench]
+opt-level = 3
+debug = false

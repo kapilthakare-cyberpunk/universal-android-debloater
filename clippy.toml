@@ -1,0 +1,15 @@
+# Clippy configuration for Universal Android Debloater
+# See: https://doc.rust-lang.org/clippy/lint_configuration.html
+
+# Allow longer functions for GUI view methods (iced pattern)
+too-many-lines-threshold = 300
+
+# Allow more cognitive complexity for match-heavy GUI code
+cognitive-complexity-threshold = 30
+
+# Disallow dbg! and todo! in production code
+allow-dbg-in-tests = false
+allow-unwrap-in-tests = true
+
+# Warn on print statements in production
+allow-print-in-tests = true

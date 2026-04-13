@@ -1,12 +1,17 @@
 name: Build artifacts
+
 on:
   workflow_dispatch:
   workflow_call:
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   build:
-    name: Building ${{ matrix.build_target }} [${{ matrix.graphics }}] [${{ matrix.update_feature }}]
+    name: ${{ matrix.build_target }} [${{ matrix.graphics }}] [${{ matrix.update_feature }}]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
       matrix:
         build_target: [linux, macos, windows]
@@ -25,16 +30,23 @@ jobs:
           - graphics: glow
             renderer: "-opengl"
           - graphics: wgpu
-            renderer: "" # Vulkan but we don't want this in the binary filename
+            renderer: ""
           - update_feature: self-update
-            update_name: "" # we don't want this in the binary filename
+            update_name: ""
           - update_feature: no-self-update
             update_name: "-noseflupdate"
+
     steps:
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: rui314/setup-mold@v1 # faster linker
-      - uses: actions/cache@v3
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install mold linker
+        uses: rui314/setup-mold@v1
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/bin/
@@ -43,23 +55,30 @@ jobs:
             ~/.cargo/git/db/
             target
           key: ${{ runner.os }}-release-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.OS }}-release-
-        if: matrix.os == 'ubuntu-latest'
-      - name: Building
+          restore-keys: |
+            ${{ runner.OS }}-release-
+
+      - name: Build release
         run: cargo build --release --no-default-features --features ${{ matrix.graphics }},${{ matrix.update_feature }}
-      - name: Creating ./bin directory
+
+      - name: Create bin directory
         run: mkdir -p bin
-      - name: Renaming binaries [Windows]
+
+      - name: Rename binary (Windows)
         if: matrix.os == 'windows-latest'
         run: mv target/release/uad_gui.exe bin/uad_gui-${{ matrix.build_target }}${{ matrix.renderer }}.exe
-      - name: Renaming binaries [Others]
+
+      - name: Rename binary (Linux/macOS)
         if: matrix.os != 'windows-latest'
         run: mv target/release/uad_gui bin/uad_gui${{ matrix.update_name }}-${{ matrix.build_target }}${{ matrix.renderer }}
-      - name: Tarball Linux/MacOS binary
+
+      - name: Create tarball (Linux/macOS)
         if: matrix.os != 'windows-latest'
-        run: tar -czf bin/uad_gui${{ matrix.update_name }}-${{ matrix.build_target }}${{ matrix.renderer }}{.tar.gz,}
+        run: tar -czf bin/uad_gui${{ matrix.update_name }}-${{ matrix.build_target }}${{ matrix.renderer }}.tar.gz -C bin uad_gui${{ matrix.update_name }}-${{ matrix.build_target }}${{ matrix.renderer }}
+
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: uad_gui${{ matrix.update_name }}-${{ matrix.build_target }}${{ matrix.renderer }}
           path: bin/uad_gui-*
+          retention-days: 14

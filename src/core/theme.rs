@@ -112,3 +112,47 @@ impl std::fmt::Display for Theme {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_theme_all() {
+        assert_eq!(Theme::ALL.len(), 3);
+        assert!(Theme::ALL.contains(&Theme::Dark));
+        assert!(Theme::ALL.contains(&Theme::Light));
+        assert!(Theme::ALL.contains(&Theme::Lupin));
+    }
+
+    #[test]
+    fn test_theme_display() {
+        assert_eq!(Theme::Dark.to_string(), "Dark");
+        assert_eq!(Theme::Light.to_string(), "Light");
+        assert_eq!(Theme::Lupin.to_string(), "Lupin");
+    }
+
+    #[test]
+    fn test_theme_palette_returns_valid_colors() {
+        for theme in Theme::ALL {
+            let palette = theme.palette();
+            // Verify all color fields have valid alpha values (0.0 - 1.0)
+            assert!((0.0..=1.0).contains(&palette.base.background.a));
+            assert!((0.0..=1.0).contains(&palette.base.foreground.a));
+            assert!((0.0..=1.0).contains(&palette.normal.primary.a));
+            assert!((0.0..=1.0).contains(&palette.bright.primary.a));
+        }
+    }
+
+    #[test]
+    fn test_theme_default_is_lupin() {
+        assert_eq!(Theme::default(), Theme::Lupin);
+    }
+
+    #[test]
+    fn test_theme_copy_and_clone() {
+        let theme = Theme::Dark;
+        let cloned = theme;
+        assert_eq!(theme, cloned);
+    }
+}

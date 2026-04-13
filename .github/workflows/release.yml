@@ -1,50 +1,269 @@
-name: Build and release
+# Production Release Workflow
+# Builds, packages, and publishes installers for macOS (.dmg), Windows (.exe/.msi), and Linux (.deb/.AppImage)
+# Triggered on version tags (e.g., v0.7.0) or manual dispatch
+
+name: Release
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - "**.rs"
-      - "Cargo.lock"
-      - "Cargo.toml"
-    tags-ignore:
-      - dev-build
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g., 0.7.0)"
+        required: false
+        default: "0.7.0-dev"
+
+permissions:
+  contents: write
+  packages: write
 
 env:
-  dev_tag: dev-build
+  CARGO_TERM_COLOR: always
+  APP_NAME: Universal-Android-Debloat
+  RUST_BACKTRACE: 1
 
 jobs:
-  build:
-    uses: ./.github/workflows/build_artifacts.yml
-  release:
-    runs-on: ubuntu-latest
-    needs: build
+  # ──────────────────────────────────────────────
+  # macOS: Build → .app → .dmg
+  # ──────────────────────────────────────────────
+  macos-release:
+    name: macOS Universal Installer
+    runs-on: macos-latest
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        graphics: [wgpu, glow]
+      fail-fast: false
+
     steps:
-      - uses: actions/checkout@v3
-      - name: Downloads artifacts
-        uses: actions/download-artifact@v3
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          path: bin
-      - name: Create pre-release
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
         with:
-          body_path: ${{ github.workspace }}/CHANGELOG.md
-          files: bin/*/uad_gui-*
-          prerelease: true
-      # - name: Update dev-build tag
-      #   if: ${{ github.event_name == 'push' }}
-      #   run: |
-      #     git tag -d ${{ env.dev_tag }} || true
-      #     git push origin :refs/tags/${{ env.dev_tag }} || true
-      #     git tag ${{ env.dev_tag }}
-      #     git push origin ${{ env.dev_tag }}
-      # - name: Create dev-build release
-      #   if: ${{ github.event_name == 'push' }}
-      #   uses: softprops/action-gh-release@v1
-      #   with:
-      #     generate_release_notes: true
-      #     files: bin/*/uad_gui-*
-      #     prerelease: true
-      #     tag_name: ${{ env.dev_tag }}
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target
+          key: ${{ runner.os }}-release-${{ matrix.graphics }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-release-${{ matrix.graphics }}-
+
+      - name: Build release (Vulkan/WGPU)
+        if: matrix.graphics == 'wgpu'
+        run: cargo build --release --no-default-features --features wgpu,self-update
+
+      - name: Build release (OpenGL)
+        if: matrix.graphics == 'glow'
+        run: cargo build --release --no-default-features --features glow,self-update
+
+      - name: Create .app bundle
+        run: |
+          chmod +x scripts/package-macos.sh
+          ./scripts/package-macos.sh "${{ matrix.graphics }}"
+
+      - name: Create .dmg installer
+        run: |
+          chmod +x scripts/create-dmg.sh
+          ./scripts/create-dmg.sh "${{ matrix.graphics }}"
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: uad-macos-${{ matrix.graphics }}
+          path: dist/*.dmg
+          retention-days: 14
+
+  # ──────────────────────────────────────────────
+  # Windows: Build → .exe → Installer
+  # ──────────────────────────────────────────────
+  windows-release:
+    name: Windows Installer
+    runs-on: windows-latest
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        graphics: [wgpu, glow]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target
+          key: ${{ runner.os }}-release-${{ matrix.graphics }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-release-${{ matrix.graphics }}-
+
+      - name: Build release (Vulkan/WGPU)
+        if: matrix.graphics == 'wgpu'
+        run: cargo build --release --no-default-features --features wgpu,self-update
+
+      - name: Build release (OpenGL)
+        if: matrix.graphics == 'glow'
+        run: cargo build --release --no-default-features --features glow,self-update
+
+      - name: Package Windows installer
+        shell: pwsh
+        run: |
+          .\scripts\package-windows.ps1 "${{ matrix.graphics }}"
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: uad-windows-${{ matrix.graphics }}
+          path: dist/*
+          retention-days: 14
+
+  # ──────────────────────────────────────────────
+  # Linux: Build → .deb + .AppImage
+  # ──────────────────────────────────────────────
+  linux-release:
+    name: Linux Installer
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        graphics: [wgpu, glow]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libssl-dev \
+            libfontconfig1-dev \
+            libxcb-render0-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev \
+            libxkbcommon-dev \
+            libgtk-3-dev \
+            appstream \
+            desktop-file-utils \
+            fakeroot \
+            dpkg
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target
+          key: ${{ runner.os }}-release-${{ matrix.graphics }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-release-${{ matrix.graphics }}-
+
+      - name: Build release (Vulkan/WGPU)
+        if: matrix.graphics == 'wgpu'
+        run: cargo build --release --no-default-features --features wgpu,self-update
+
+      - name: Build release (OpenGL)
+        if: matrix.graphics == 'glow'
+        run: cargo build --release --no-default-features --features glow,self-update
+
+      - name: Package Linux installers
+        run: |
+          chmod +x scripts/package-linux.sh
+          ./scripts/package-linux.sh "${{ matrix.graphics }}"
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: uad-linux-${{ matrix.graphics }}
+          path: dist/*
+          retention-days: 14
+
+  # ──────────────────────────────────────────────
+  # Publish: Collect all artifacts → GitHub Release
+  # ──────────────────────────────────────────────
+  publish-release:
+    name: Publish to GitHub Releases
+    runs-on: ubuntu-latest
+    needs: [macos-release, windows-release, linux-release]
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Flatten artifact structure
+        run: |
+          mkdir -p final-release
+          find release-artifacts -type f -exec cp {} final-release/ \;
+          ls -la final-release/
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          if [ -z "$VERSION" ]; then
+            VERSION="v${{ github.event.inputs.version }}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          cat > release-notes.md << 'EOF'
+          ## Universal Android Debloater
+
+          ### Quick Install
+
+          **macOS:** Download the `.dmg` file, open it, and drag the app to Applications.
+          **Windows:** Run the `.exe` installer or use the portable `.zip`.
+          **Linux:** Install the `.deb` package or run the `.AppImage` directly.
+
+          ### Which version do I need?
+
+          - **WGPU (default):** For modern GPUs with Vulkan support
+          - **OpenGL:** For older hardware or if the default version doesn't launch
+
+          ### First Time?
+          Read the [Installation Guide](INSTALL.md) for step-by-step instructions.
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.notes.outputs.version }}
+          name: "Universal Android Debloater ${{ steps.notes.outputs.version }}"
+          body_path: release-notes.md
+          files: final-release/*
+          draft: false
+          prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') || contains(github.ref, 'rc') }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -26,7 +26,7 @@ impl About {
         }
         // other events are handled by UadGui update()
     }
-    pub fn view(&self, update_state: &UpdateState) -> Element<Message, Renderer<Theme>> {
+    pub fn view(&self, update_state: &UpdateState) -> Element<'_, Message, Renderer<Theme>> {
         let about_text = text(
             "Universal Android Debloater (UAD) is a Free and Open-Source community project aiming at simplifying \
             the removal of pre-installed apps on any Android device.",
@@ -52,8 +52,7 @@ impl About {
             .style(style::Button::Primary);
 
         #[cfg(feature = "self-update")]
-        let uad_version_text =
-            text(format!("UAD version: v{}", env!("CARGO_PKG_VERSION"))).width(250);
+        let uad_version_text = text(format!("UAD version: v{}", env!("CARGO_PKG_VERSION"))).width(250);
 
         #[cfg(feature = "self-update")]
         #[rustfmt::skip]
@@ -88,9 +87,7 @@ impl About {
             .spacing(10);
 
         #[cfg(not(feature = "self-update"))]
-        let update_column = column![uad_list_row]
-            .align_items(Alignment::Center)
-            .spacing(10);
+        let update_column = column![uad_list_row].align_items(Alignment::Center).spacing(10);
 
         let update_container = container(update_column)
             .width(Length::Fill)

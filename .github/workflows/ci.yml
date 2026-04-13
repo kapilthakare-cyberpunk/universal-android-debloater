@@ -1,4 +1,5 @@
 name: Continuous Integration
+
 on:
   push:
     paths:
@@ -6,21 +7,27 @@ on:
       - "Cargo.lock"
       - "Cargo.toml"
       - "**.json"
+      - ".github/workflows/ci.yml"
   pull_request:
     paths:
       - "**.rs"
       - "Cargo.lock"
       - "Cargo.toml"
       - "**.json"
+      - ".github/workflows/ci.yml"
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
   lint:
+    name: ${{ matrix.os }} / ${{ matrix.lint }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
         lint: [check, test, clippy, fmt]
-        exclude: # https://github.com/community/community/discussions/7835
+        exclude:
           - os: windows-latest
             lint: clippy
           - os: windows-latest
@@ -29,19 +36,15 @@ jobs:
             lint: clippy
           - os: macOS-latest
             lint: fmt
-        include:
-          - lint: check
-            args: " --all-features"
-          - lint: test
-            args: ""
-          - lint: clippy
-            args: " --all --all-features -- -D warnings"
-          - lint: fmt
-            args: " --all -- --check"
+      fail-fast: false
     steps:
-      - uses: actions/checkout@v3
-      - uses: rui314/setup-mold@v1 # faster linker
-      - uses: actions/cache@v3
+      - uses: actions/checkout@v4
+
+      - name: Install mold linker
+        uses: rui314/setup-mold@v1
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/bin/
@@ -50,8 +53,15 @@ jobs:
             ~/.cargo/git/db/
             target
           key: ${{ runner.os }}-${{ matrix.lint }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.OS }}-${{ matrix.lint }}-
-      - uses: dtolnay/rust-toolchain@stable
+          restore-keys: |
+            ${{ runner.OS }}-${{ matrix.lint }}-
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy,rustfmt
-      - run: cargo ${{ matrix.lint }}${{ matrix.args }}
+          components: clippy, rustfmt
+
+      - name: Run ${{ matrix.lint }}
+        run: cargo ${{ matrix.lint }}${{ matrix.args }}
+        env:
+          RUSTFLAGS: "-D warnings"

@@ -73,8 +73,31 @@ jobs:
 
       - name: Create .dmg installer
         run: |
-          chmod +x scripts/create-dmg.sh
-          ./scripts/create-dmg.sh "${{ matrix.graphics }}"
+          # Get version from Cargo.toml
+          VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          VERSION="${VERSION:-0.7.0}"
+
+          GRAPHICS_LABEL=""
+          if [[ "${{ matrix.graphics }}" == "glow" ]]; then
+            GRAPHICS_LABEL="-OpenGL"
+          fi
+
+          DMG_NAME="Universal.Android.Debloater-${VERSION}${GRAPHICS_LABEL}-macos.dmg"
+          APP_BUNDLE="dist/Universal.Android Debloater.app"
+          DMG_PATH="dist/${DMG_NAME}"
+
+          echo "Creating DMG: ${DMG_NAME}"
+
+          # Create temporary disk image
+          hdiutil create -srcfolder "dist/Universal Android Debloater.app" \
+            -volname "Universal Android Debloater" \
+            -fs HFS+ \
+            -format UDZO \
+            -imagekey zlib-level=9 \
+            "${DMG_PATH}"
+
+          echo "DMG created: ${DMG_PATH}"
+          ls -lh "${DMG_PATH}"
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
@@ -165,10 +188,9 @@ jobs:
             libxcb-xfixes0-dev \
             libxkbcommon-dev \
             libgtk-3-dev \
-            appstream \
-            desktop-file-utils \
-            fakeroot \
-            dpkg
+            libwebkit2gtk-4.0-dev \
+            libasound2-dev \
+            libudev-dev
 
       - name: Cache cargo registry
         uses: actions/cache@v4

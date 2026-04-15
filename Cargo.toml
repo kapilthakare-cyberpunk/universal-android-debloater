@@ -54,15 +54,19 @@ iced = { git = "https://github.com/iced-rs/iced.git" }
 iced_native = { git = "https://github.com/iced-rs/iced.git" }
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "^1.0"
+thiserror = "1.0"
+chrono = { version = "^0.4", default-features = false, features = ["std", "clock", "serde"] }
 static_init = "^1.0"
 fern = { version = "^0", features = ["colored"] }
-chrono = { version = "^0.4", default-features = false, features = ["std", "clock"] }
 log = "^0.4"
 regex = "^1.5"
 toml = "^0"
 dirs = "^5.0.0"
 ureq = { version = "*", features = ["json"] }
 retry = { version = "^2.0.0" }
+tokio = { version = "1.0", features = ["full"] }
+reqwest = { version = "0.11", features = ["json"] }
+futures = "0.3"
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 flate2 = { version = "^1", optional = true }

@@ -13,7 +13,7 @@ use std::process::Command;
 use std::os::windows::process::CommandExt;
 
 #[dynamic]
-static RE: Regex = Regex::new(r"\n(\S+)\s+device").unwrap();
+static RE: Regex = Regex::new(r"\n(\S+)\s+(device|unauthorized)").unwrap();
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Phone {
@@ -21,6 +21,7 @@ pub struct Phone {
     pub android_sdk: u8,
     pub user_list: Vec<User>,
     pub adb_id: String,
+    pub state: String,
 }
 
 impl Default for Phone {
@@ -30,13 +31,18 @@ impl Default for Phone {
             android_sdk: 0,
             user_list: vec![],
             adb_id: String::new(),
+            state: String::new(),
         }
     }
 }
 
 impl std::fmt::Display for Phone {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.model)
+        if self.state == "device" {
+            write!(f, "{}", self.model)
+        } else {
+            write!(f, "{} ({})", self.model, self.state)
+        }
     }
 }
 
@@ -307,12 +313,19 @@ pub async fn get_devices_list() -> Vec<Phone> {
                     return OperationResult::Retry(vec![]);
                 }
                 for device in RE.captures_iter(&devices) {
-                    env::set_var("ANDROID_SERIAL", &device[1]);
+                    let device_id = &device[1];
+                    let state = &device[2];
+                    env::set_var("ANDROID_SERIAL", device_id);
                     device_list.push(Phone {
-                        model: get_phone_brand(),
-                        android_sdk: get_android_sdk(),
-                        user_list: get_user_list(),
-                        adb_id: device[1].to_string(),
+                        model: if state == "device" {
+                            get_phone_brand()
+                        } else {
+                            format!("{} ({})", device_id, state)
+                        },
+                        android_sdk: if state == "device" { get_android_sdk() } else { 0 },
+                        user_list: if state == "device" { get_user_list() } else { vec![] },
+                        adb_id: device_id.to_string(),
+                        state: state.to_string(),
                     });
                 }
                 OperationResult::Ok(device_list)

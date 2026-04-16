@@ -9,6 +9,7 @@ use crate::core::update::{get_latest_release, Release, SelfUpdateState, SelfUpda
 use crate::core::utils::string_to_theme;
 
 use views::about::{About as AboutView, Message as AboutMessage};
+use views::ai_debloat::{AiDebloat as AiDebloatView, Message as AiDebloatMessage};
 use views::list::{List as AppsView, LoadingState as ListLoadingState, Message as AppsMessage};
 use views::settings::{Message as SettingsMessage, Settings as SettingsView};
 use widgets::navigation_menu::nav_menu;
@@ -24,6 +25,7 @@ use crate::core::update::{bin_name, download_update_to_temp_file, remove_file};
 enum View {
     #[default]
     List,
+    AiDebloat,
     About,
     Settings,
 }
@@ -38,6 +40,7 @@ pub struct UpdateState {
 pub struct UadGui {
     view: View,
     apps_view: AppsView,
+    ai_debloat_view: AiDebloatView,
     about_view: AboutView,
     settings_view: SettingsView,
     devices_list: Vec<Phone>,
@@ -52,10 +55,12 @@ pub enum Message {
     AboutPressed,
     SettingsPressed,
     AppsPress,
+    AiDebloatPressed,
     DeviceSelected(Phone),
     AboutAction(AboutMessage),
     AppsAction(AppsMessage),
     SettingsAction(SettingsMessage),
+    AiDebloatAction(AiDebloatMessage),
     RefreshButtonPressed,
     RebootButtonPressed,
     LoadDevices(Vec<Phone>),
@@ -114,6 +119,10 @@ impl Application for UadGui {
                 self.view = View::List;
                 Command::none()
             }
+            Message::AiDebloatPressed => {
+                self.view = View::AiDebloat;
+                Command::none()
+            }
             Message::AboutPressed => {
                 self.view = View::About;
                 self.update_state.self_update = SelfUpdateState::default();
@@ -144,6 +153,15 @@ impl Application for UadGui {
                     msg,
                 )
                 .map(Message::AppsAction),
+            Message::AiDebloatAction(msg) => self
+                .ai_debloat_view
+                .update(
+                    &self.settings_view.general,
+                    &self.selected_device.clone().unwrap_or_default(),
+                    &self.apps_view.phone_packages,
+                    msg,
+                )
+                .map(Message::AiDebloatAction),
             Message::SettingsAction(msg) => {
                 match msg {
                     SettingsMessage::RestoringDevice(ref output) => {
@@ -310,6 +328,10 @@ impl Application for UadGui {
                 .apps_view
                 .view(&self.settings_view, &selected_device)
                 .map(Message::AppsAction),
+            View::AiDebloat => self
+                .ai_debloat_view
+                .view(&selected_device)
+                .map(Message::AiDebloatAction),
             View::About => self.about_view.view(&self.update_state).map(Message::AboutAction),
             View::Settings => self.settings_view.view(&selected_device).map(Message::SettingsAction),
         };

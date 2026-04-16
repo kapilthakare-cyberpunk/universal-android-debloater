@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat /Users/kapilthakare/Projects/universal-android-debloater/.github/ISSUE_TEMPLATE/*.md)"
+    ]
+  }
+}

@@ -18,6 +18,28 @@ pub struct Config {
 pub struct GeneralSettings {
     pub theme: String,
     pub expert_mode: bool,
+    // AI Settings
+    pub groq_api_key: Option<String>,
+    pub ai_debloat_mode: AiDebloatMode,
+    pub ai_enabled: bool,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
+pub enum AiDebloatMode {
+    #[default]
+    Safe,
+    Balanced,
+    Max,
+}
+
+impl std::fmt::Display for AiDebloatMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AiDebloatMode::Safe => write!(f, "Safe (Recommended)"),
+            AiDebloatMode::Balanced => write!(f, "Balanced"),
+            AiDebloatMode::Max => write!(f, "Max (Aggressive)"),
+        }
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -91,6 +113,9 @@ mod tests {
         assert_eq!(config.general.theme, String::new());
         assert!(!config.general.expert_mode);
         assert!(config.devices.is_empty());
+        assert!(config.general.groq_api_key.is_none());
+        assert_eq!(config.general.ai_debloat_mode, AiDebloatMode::Safe);
+        assert!(!config.general.ai_enabled);
     }
 
     #[test]
@@ -98,6 +123,16 @@ mod tests {
         let settings = GeneralSettings::default();
         assert_eq!(settings.theme, String::new());
         assert!(!settings.expert_mode);
+        assert!(settings.groq_api_key.is_none());
+        assert_eq!(settings.ai_debloat_mode, AiDebloatMode::Safe);
+        assert!(!settings.ai_enabled);
+    }
+
+    #[test]
+    fn test_ai_debloat_mode_display() {
+        assert_eq!(format!("{}", AiDebloatMode::Safe), "Safe (Recommended)");
+        assert_eq!(format!("{}", AiDebloatMode::Balanced), "Balanced");
+        assert_eq!(format!("{}", AiDebloatMode::Max), "Max (Aggressive)");
     }
 
     #[test]
